@@ -54,6 +54,8 @@ module Sprockets::Vue
             output << "VComponents['#{name.sub(/\.tpl$/, "")}'].template = '#{j built_template}';"
           end
 
+          output << "Vue.component('#{name.split('/').last}', VComponents['#{name}']);"
+
           { data: "#{warp(output.join)}", map: map }
         end
       end
