@@ -12,9 +12,24 @@ module Sprockets::Vue
           CoffeeScript.compile(s, sourceMap: true, sourceFiles: [input[:source_path]], no_wrap: true)
         },
         'es6' => ->(s, input){
-          Babel::Transpiler.transform(data, {}) #TODO
+          opts = {
+            'sourceRoot' => input[:load_path],
+            'moduleRoot' => nil,
+            'filename' => input[:filename],
+            'filenameRelative' => input[:environment].split_subpath(input[:load_path], input[:filename])
+          }
+
+          result = Babel::Transpiler.transform(s, opts)
+
+          { 'js' => result['code'] }
         },
         nil => ->(s,input){ { 'js' => s } }
+      }
+
+      TEMPLATE_COMPILES = {
+        'slim' => ->(s) { Slim::Template.new { s }.render },
+        'slm' => ->(s) { Slim::Template.new { s }.render },
+        nil => ->(s) { s }
       }
       def call(input)
         data = input[:data]
@@ -26,7 +41,7 @@ module Sprockets::Vue
           map = nil
           if script
             result = SCRIPT_COMPILES[script[:lang]].call(script[:content], input)
-            
+
             map = result['sourceMap']
 
             output << "'object' != typeof VComponents && (this.VComponents = {});
@@ -35,7 +50,8 @@ module Sprockets::Vue
           end
 
           if template
-            output << "VComponents['#{name.sub(/\.tpl$/, "")}'].template = '#{j template[:content]}';"
+            built_template = TEMPLATE_COMPILES[template[:lang]].call(template[:content])
+            output << "VComponents['#{name.sub(/\.tpl$/, "")}'].template = '#{j built_template}';"
           end
 
           { data: "#{warp(output.join)}", map: map }
